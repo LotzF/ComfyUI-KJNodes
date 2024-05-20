@@ -74,79 +74,79 @@ app.registerExtension({
 					}
 				}
 			};
-			
-			app.ui.settings.addSetting({
-				id: "🦛 KJNodes.SetGetMenu",
-				name: "🦛 KJNodes: Make Set/Get -nodes defaults (turn off and reload to disable)",
-				defaultValue: false,
-				type: "boolean",
-				options: (value) => [
-					{
-						value: true,
-						text: "On",
-						selected: value === true,
-					},
-					{
-						value: false,
-						text: "Off",
-						selected: value === false,
-					},
-				],
-				onChange: onChange,
-				
-			});
-			app.ui.settings.addSetting({
-				id: "KJNodes.DisableMiddleClickDefault",
-				name: "🦛 KJNodes: Middle click default node adding",
-				defaultValue: false,
-				type: "boolean",
-				options: (value) => [
-					{ value: true, text: "On", selected: value === true },
-					{ value: false, text: "Off", selected: value === false },
-				],
-				onChange: (value) => {
-					LiteGraph.middle_click_slot_add_default_node = value;
-				},
-			});
-			app.ui.settings.addSetting({
-				id: "KJNodes.nodeAutoColor",
-				name: "🦛 KJNodes: Automatically set node colors",
-				defaultValue: true,
-				type: "boolean",
-				options: (value) => [
-					{ value: true, text: "On", selected: value === true },
-					{ value: false, text: "Off", selected: value === false },
-				],
-			});
-			app.ui.settings.addSetting({
-				id: "KJNodes.helpPopup",
-				name: "🦛 KJNodes: Help popups",
-				defaultValue: true,
-				type: "boolean",
-				options: (value) => [
-					{ value: true, text: "On", selected: value === true },
-					{ value: false, text: "Off", selected: value === false },
-				],
-			});
-			app.ui.settings.addSetting({
-				id: "KJNodes.disablePrefix",
-				name: "🦛 KJNodes: Disable automatic Set_ and Get_ prefix",
-				defaultValue: false,
-				type: "boolean",
-				options: (value) => [
-					{ value: true, text: "On", selected: value === true },
-					{ value: false, text: "Off", selected: value === false },
-				],
-			});
-			app.ui.settings.addSetting({
-				id: "KJNodes.browserStatus",
-				name: "🦛 KJNodes: 🟢 Stoplight browser status icon 🔴",
-				defaultValue: false,
-				type: "boolean",
-				options: (value) => [
-					{ value: true, text: "On", selected: value === true },
-					{ value: false, text: "Off", selected: value === false },
-				],
-			});
+
+			// app.ui.settings.addSetting({
+			// 	id: "🦛 KJNodes.SetGetMenu",
+			// 	name: "🦛 KJNodes: Make Set/Get -nodes defaults (turn off and reload to disable)",
+			// 	defaultValue: false,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{
+			// 			value: true,
+			// 			text: "On",
+			// 			selected: value === true,
+			// 		},
+			// 		{
+			// 			value: false,
+			// 			text: "Off",
+			// 			selected: value === false,
+			// 		},
+			// 	],
+			// 	onChange: onChange,
+			//
+			// });
+			// app.ui.settings.addSetting({
+			// 	id: "KJNodes.DisableMiddleClickDefault",
+			// 	name: "🦛 KJNodes: Middle click default node adding",
+			// 	defaultValue: false,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{ value: true, text: "On", selected: value === true },
+			// 		{ value: false, text: "Off", selected: value === false },
+			// 	],
+			// 	onChange: (value) => {
+			// 		LiteGraph.middle_click_slot_add_default_node = value;
+			// 	},
+			// });
+			// app.ui.settings.addSetting({
+			// 	id: "KJNodes.nodeAutoColor",
+			// 	name: "🦛 KJNodes: Automatically set node colors",
+			// 	defaultValue: true,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{ value: true, text: "On", selected: value === true },
+			// 		{ value: false, text: "Off", selected: value === false },
+			// 	],
+			// });
+			// app.ui.settings.addSetting({
+			// 	id: "KJNodes.helpPopup",
+			// 	name: "🦛 KJNodes: Help popups",
+			// 	defaultValue: true,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{ value: true, text: "On", selected: value === true },
+			// 		{ value: false, text: "Off", selected: value === false },
+			// 	],
+			// });
+			// app.ui.settings.addSetting({
+			// 	id: "KJNodes.disablePrefix",
+			// 	name: "🦛 KJNodes: Disable automatic Set_ and Get_ prefix",
+			// 	defaultValue: false,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{ value: true, text: "On", selected: value === true },
+			// 		{ value: false, text: "Off", selected: value === false },
+			// 	],
+			// });
+			// app.ui.settings.addSetting({
+			// 	id: "KJNodes.browserStatus",
+			// 	name: "🦛 KJNodes: 🟢 Stoplight browser status icon 🔴",
+			// 	defaultValue: false,
+			// 	type: "boolean",
+			// 	options: (value) => [
+			// 		{ value: true, text: "On", selected: value === true },
+			// 		{ value: false, text: "Off", selected: value === false },
+			// 	],
+			// });
 }
 });
