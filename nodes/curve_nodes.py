@@ -113,6 +113,7 @@ class SplineEditor:
                 [   
                     'path',
                     'time',
+                    'controlpoints'
                 ],
                 {
                     "default": 'time'
@@ -632,7 +633,7 @@ and returns that as the selected output type.
                   
         # Convert mean_values to the specified output_type
         if output_type == 'list':
-            out = mean_values,
+            out = mean_values
         elif output_type == 'pandas series':
             try:
                 import pandas as pd
@@ -1245,3 +1246,109 @@ CreateInstanceDiffusionTracking -node.
         image_tensor_batch = torch.stack(modified_images).cpu().float()
         
         return image_tensor_batch,
+
+class PointsEditor:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "points_store": ("STRING", {"multiline": False}),
+                "coordinates": ("STRING", {"multiline": False}),
+                "bbox_store": ("STRING", {"multiline": False}),
+                "bboxes": ("STRING", {"multiline": False}),
+                "bbox_format": (
+                [   
+                    'xyxy',
+                    'xywh',
+                ],
+                ),
+                "width": ("INT", {"default": 512, "min": 8, "max": 4096, "step": 8}),
+                "height": ("INT", {"default": 512, "min": 8, "max": 4096, "step": 8}),
+            },
+            "optional": {
+                "bg_image": ("IMAGE", ),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "BBOX", "MASK")
+    RETURN_NAMES = ("coord_str", "normalized_str", "bbox", "bbox_mask")
+    FUNCTION = "pointdata"
+    CATEGORY = "KJNodes/weights"
+    DESCRIPTION = """
+# WORK IN PROGRESS  
+Do not count on this as part of your workflow yet,  
+probably contains lots of bugs and stability is not  
+guaranteed!!  
+  
+## Graphical editor to create coordinates
+
+**Shift + click** to add control point at end.
+**Ctrl + click** to draw a box.  
+**Right click on a point** to delete it.    
+Note that you can't delete from start/end of the points array.  
+  
+To add an image select the node and copy/paste or drag in the image.  
+Or from the bg_image input on queue (first frame of the batch).  
+
+**THE IMAGE IS SAVED TO THE NODE AND WORKFLOW METADATA**
+
+"""
+
+    def pointdata(self, points_store, bbox_store, width, height, coordinates, bboxes, bbox_format="xyxy", bg_image=None):
+        import io
+        import base64
+        
+        coordinates = json.loads(coordinates)
+        normalized = []
+        normalized_y_values = []
+        for coord in coordinates:
+            coord['x'] = int(round(coord['x']))
+            coord['y'] = int(round(coord['y']))
+            norm_x = (1.0 - (coord['x'] / height) - 0.0)
+            norm_y = (1.0 - (coord['y'] / height) - 0.0)
+            normalized_y_values.append(norm_y)
+            normalized.append({'x':norm_x, 'y':norm_y})
+
+        # Create a blank mask
+        mask = np.zeros((height, width), dtype=np.uint8)
+        bboxes = json.loads(bboxes)
+        print(bboxes)
+        if bboxes["x"] is None or bboxes["y"] is None or bboxes["width"] is None or bboxes["height"] is None:
+            bboxes = []
+        else:
+            bboxes = [(int(bboxes["x"]), int(bboxes["y"]), int(bboxes["width"]), int(bboxes["height"]))]
+
+            bboxes_xyxy = []
+            # Draw the bounding box on the mask
+            for bbox in bboxes:
+                x_min, y_min, w, h = bbox
+                x_max = x_min + w
+                y_max = y_min + h
+                bboxes_xyxy.append((x_min, y_min, x_max, y_max))
+                
+                mask[y_min:y_max, x_min:x_max] = 1  # Fill the bounding box area with 1s
+
+            if bbox_format == "xyxy":
+                bboxes = bboxes_xyxy
+
+        mask_tensor = torch.from_numpy(mask)
+        mask_tensor = mask_tensor.unsqueeze(0).float().cpu()
+        #mask_tensor = mask_tensor[:,:,0]
+        print(mask_tensor.shape)
+
+        if bg_image is None:
+            return (json.dumps(coordinates), json.dumps(normalized), bboxes, mask_tensor)
+        else:
+            transform = transforms.ToPILImage()
+            image = transform(bg_image[0].permute(2, 0, 1))
+            buffered = io.BytesIO()
+            image.save(buffered, format="JPEG", quality=75)
+
+            # Step 3: Encode the image bytes to a Base64 string
+            img_bytes = buffered.getvalue()
+            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+            return {
+                "ui": {"bg_image": [img_base64]}, 
+                "result": (json.dumps(coordinates), json.dumps(normalized), bboxes, mask_tensor)
+            }

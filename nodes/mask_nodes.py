@@ -151,9 +151,7 @@ class DownloadAndLoadCLIPSeg:
                     [   'Kijai/clipseg-rd64-refined-fp16',
                         'CIDAS/clipseg-rd64-refined',
                     ],
-                    {
-                    "default": 'clipseg-rd64-refined-fp16'
-                    }),
+                    ),
                      },
                 }
 
@@ -168,11 +166,11 @@ to ComfyUI/models/clip_seg
 
     def segment_image(self, model):
         from transformers import CLIPSegProcessor, CLIPSegForImageSegmentation
-        checkpoint_path = os.path.join(folder_paths.models_dir,'clip_seg', model)
+        checkpoint_path = os.path.join(folder_paths.models_dir,'clip_seg', os.path.basename(model))
         if not hasattr(self, "model"):
             if not os.path.exists(checkpoint_path):
                 from huggingface_hub import snapshot_download
-                snapshot_download(repo_id=model, local_dir=checkpoint_path.split("/")[-1], local_dir_use_symlinks=False)
+                snapshot_download(repo_id=model, local_dir=checkpoint_path, local_dir_use_symlinks=False)
             self.model = CLIPSegForImageSegmentation.from_pretrained(checkpoint_path)
 
         processor = CLIPSegProcessor.from_pretrained(checkpoint_path)
@@ -361,7 +359,7 @@ class CreateFluidMask:
         return {
             "required": {
                  "invert": ("BOOLEAN", {"default": False}),
-                 "frames": ("INT", {"default": 0,"min": 0, "max": 255, "step": 1}),
+                 "frames": ("INT", {"default": 1,"min": 1, "max": 4096, "step": 1}),
                  "width": ("INT", {"default": 256,"min": 16, "max": 4096, "step": 1}),
                  "height": ("INT", {"default": 256,"min": 16, "max": 4096, "step": 1}),
                  "inflow_count": ("INT", {"default": 3,"min": 0, "max": 255, "step": 1}),
@@ -374,7 +372,10 @@ class CreateFluidMask:
     #using code from https://github.com/GregTJ/stable-fluids
     def createfluidmask(self, frames, width, height, invert, inflow_count, inflow_velocity, inflow_radius, inflow_padding, inflow_duration):
         from ..utility.fluid import Fluid
-        from scipy.spatial import erf
+        try:
+            from scipy.special import erf
+        except:
+            from scipy.spatial import erf
         out = []
         masks = []
         RESOLUTION = width, height
@@ -987,7 +988,7 @@ class GrowMaskWithBlur:
         previous_output = None
         current_expand = expand
         for m in growmask:
-            output = m.numpy()
+            output = m.numpy().astype(np.float32)
             for _ in range(abs(round(current_expand))):
                 if current_expand < 0:
                     output = scipy.ndimage.grey_erosion(output, footprint=kernel)

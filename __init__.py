@@ -43,7 +43,7 @@ NODE_CONFIG = {
     "ColorMatch": {"class": ColorMatch, "name": "Color Match"},
     "CrossFadeImages": {"class": CrossFadeImages, "name": "Cross Fade Images"},
     "GetImagesFromBatchIndexed": {"class": GetImagesFromBatchIndexed, "name": "Get Images From Batch Indexed"},
-    "GetImageRangeFromBatch": {"class": GetImageRangeFromBatch, "name": "Get Image Range From Batch"},
+    "GetImageRangeFromBatch": {"class": GetImageRangeFromBatch, "name": "Get Image or Mask Range From Batch"},
     "GetImageSizeAndCount": {"class": GetImageSizeAndCount, "name": "Get Image Size & Count"},
     "ImageAndMaskPreview": {"class": ImageAndMaskPreview},
     "ImageAddMulti": {"class": ImageAddMulti, "name": "Image Add Multi"},
@@ -51,6 +51,7 @@ NODE_CONFIG = {
     "ImageBatchRepeatInterleaving": {"class": ImageBatchRepeatInterleaving},
     "ImageBatchTestPattern": {"class": ImageBatchTestPattern, "name": "Image Batch Test Pattern"},
     "ImageConcanate": {"class": ImageConcanate, "name": "Image Concatenate"},
+    "ImageConcatMulti": {"class": ImageConcatMulti, "name": "Image Concatenate Multi"},
     "ImageGrabPIL": {"class": ImageGrabPIL, "name": "Image Grab PIL"},
     "ImageGridComposite2x2": {"class": ImageGridComposite2x2, "name": "Image Grid Composite 2x2"},
     "ImageGridComposite3x3": {"class": ImageGridComposite3x3, "name": "Image Grid Composite 3x3"},
@@ -86,7 +87,7 @@ NODE_CONFIG = {
     "CustomSigmas": {"class": CustomSigmas, "name": "Custom Sigmas"},
     #utility
     "WidgetToString": {"class": WidgetToString, "name": "Widget To String"},
-    "DummyLatentOut": {"class": DummyLatentOut, "name": "Dummy Latent Out"},
+    "DummyOut": {"class": DummyOut, "name": "Dummy Out"},
     "GetLatentsFromBatchIndexed": {"class": GetLatentsFromBatchIndexed, "name": "Get Latents From Batch Indexed"},
     "ScaleBatchPromptSchedule": {"class": ScaleBatchPromptSchedule, "name": "Scale Batch Prompt Schedule"},
     "CameraPoseVisualizer": {"class": CameraPoseVisualizer, "name": "Camera Pose Visualizer"},
@@ -117,6 +118,7 @@ NODE_CONFIG = {
     "FloatToSigmas": {"class": FloatToSigmas, "name": "Float To Sigmas"},
     "PlotCoordinates": {"class": PlotCoordinates, "name": "Plot Coordinates"},
     "InterpolateCoords": {"class": InterpolateCoords, "name": "Interpolate Coords"},
+    "PointsEditor": {"class": PointsEditor, "name": "Points Editor"},
     #experimental
     "StabilityAPI_SD3": {"class": StabilityAPI_SD3, "name": "Stability API SD3"},
     "SoundReactive": {"class": SoundReactive, "name": "Sound Reactive"},
@@ -126,6 +128,9 @@ NODE_CONFIG = {
     "Superprompt": {"class": Superprompt, "name": "Superprompt"},
     "GLIGENTextBoxApplyBatchCoords": {"class": GLIGENTextBoxApplyBatchCoords},
     "Intrinsic_lora_sampling": {"class": Intrinsic_lora_sampling, "name": "Intrinsic Lora Sampling"},
+    "CheckpointPerturbWeights": {"class": CheckpointPerturbWeights, "name": "CheckpointPerturbWeights"},
+    "Screencap_mss": {"class": Screencap_mss, "name": "Screencap mss"},
+    "WebcamCaptureCV2": {"class": WebcamCaptureCV2, "name": "Webcam Capture CV2"},
 
     #instance diffusion
     "CreateInstanceDiffusionTracking": {"class": CreateInstanceDiffusionTracking},

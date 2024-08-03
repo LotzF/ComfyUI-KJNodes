@@ -9,7 +9,7 @@ import json, re, os, io, time
 import model_management
 import folder_paths
 from nodes import MAX_RESOLUTION
-from comfy.utils import common_upscale
+from comfy.utils import common_upscale, ProgressBar
 
 script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 folder_paths.add_model_folder_path("kjnodes_fonts", os.path.join(script_directory, "fonts"))
@@ -715,6 +715,10 @@ class WidgetToString:
                 "widget_name": ("STRING", {"multiline": False}),
                 "return_all": ("BOOLEAN", {"default": False}),
             },
+            "optional": {
+                         "any_input": (any, {}),
+                         "node_title": ("STRING", {"multiline": False}),
+                         },
             
             "hidden": {"extra_pnginfo": "EXTRA_PNGINFO",
                        "prompt": "PROMPT"},
@@ -725,42 +729,58 @@ class WidgetToString:
     CATEGORY = "KJNodes/text"
     DESCRIPTION = """
 Selects a node and it's specified widget and outputs the value as a string.  
-To see node id's, enable node id display from Manager badge menu.
+To see node id's, enable node id display from Manager badge menu.  
+Alternatively you can search with the node title. Node titles ONLY exist if they  
+are manually edited!  
+The 'any_input' is purely for making sure the node you want the value from exists in the workflow,  
+it has no other function than place this node at right spot in the workflow execution order.
 """
 
-    def get_widget_value(self, id, widget_name, extra_pnginfo, prompt, return_all=False):
+    def get_widget_value(self, id, widget_name, extra_pnginfo, prompt, return_all=False, any_input=None, node_title=""):
         workflow = extra_pnginfo["workflow"]
+        #print(json.dumps(workflow, indent=4))
         results = []
+        node_id = None  # Initialize node_id to handle cases where no match is found
+
         for node in workflow["nodes"]:
-            node_id = node["id"]
-
-            if node_id != id:
-                continue
-
-            values = prompt[str(node_id)]
-            if "inputs" in values:
-                if return_all:
-                    results.append(', '.join(f'{k}: {str(v)}' for k, v in values["inputs"].items()))
-                elif widget_name in values["inputs"]:
-                    v = str(values["inputs"][widget_name])  # Convert to string here
-                    return (v, )
+            if node_title:
+                if "title" in node:
+                    if node["title"] == node_title:
+                        node_id = node["id"]
+                        break
                 else:
-                    raise NameError(f"Widget not found: {id}.{widget_name}")
+                    print("Node title not found.")
+            elif node["id"] == id:
+                node_id = id
+                break
+
+        if node_id is None:
+            raise ValueError("No matching node found for the given title or id")
+
+        values = prompt[str(node_id)]
+        if "inputs" in values:
+            if return_all:
+                results.append(', '.join(f'{k}: {str(v)}' for k, v in values["inputs"].items()))
+            elif widget_name in values["inputs"]:
+                v = str(values["inputs"][widget_name])  # Convert to string here
+                return (v, )
+            else:
+                raise NameError(f"Widget not found: {id}.{widget_name}")
         if not results:
             raise NameError(f"Node not found: {id}")
         return (', '.join(results).strip(', '), )
 
-class DummyLatentOut:
+class DummyOut:
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-            "latent": ("LATENT",),
+            "any_input": (any, {}),
             }
         }
 
-    RETURN_TYPES = ("LATENT",)
+    RETURN_TYPES = (any,)
     FUNCTION = "dummy"
     CATEGORY = "KJNodes/misc"
     OUTPUT_NODE = True
@@ -769,8 +789,8 @@ Does nothing, used to trigger generic workflow output.
 A way to get previews in the UI without saving anything to disk.
 """
 
-    def dummy(self, latent):
-        return (latent,)
+    def dummy(self, any_input):
+        return (any_input,)
     
 class FlipSigmasAdjusted:
     @classmethod
@@ -837,10 +857,11 @@ SVD:
     def customsigmas(self, sigmas_string, interpolate_to_steps):
         sigmas_list = sigmas_string.split(', ')
         sigmas_float_list = [float(sigma) for sigma in sigmas_list]
-        sigmas_tensor = torch.tensor(sigmas_float_list)
-        if len(sigmas_tensor) != interpolate_to_steps:
-            sigmas_tensor = self.loglinear_interp(sigmas_tensor, interpolate_to_steps)
-        return (sigmas_tensor,)
+        sigmas_tensor = torch.FloatTensor(sigmas_float_list)
+        if len(sigmas_tensor) != interpolate_to_steps + 1:
+            sigmas_tensor = self.loglinear_interp(sigmas_tensor, interpolate_to_steps + 1)
+        sigmas_tensor[-1] = 0
+        return (sigmas_tensor.float(),)
      
     def loglinear_interp(self, t_steps, num_steps):
         """
@@ -898,10 +919,9 @@ class InjectNoiseToLatent:
             noised = mask * noised + (1-mask) * latents["samples"]
         if mix_randn_amount > 0:
             if seed is not None:
-                torch.manual_seed(seed)
-            rand_noise = torch.randn_like(noised)
-            noised = ((1 - mix_randn_amount) * noised + mix_randn_amount *
-                            rand_noise) / ((mix_randn_amount**2 + (1-mix_randn_amount)**2) ** 0.5)
+                generator = torch.manual_seed(seed)
+                rand_noise = torch.randn(noised.size(), dtype=noised.dtype, layout=noised.layout, generator=generator, device="cpu")
+                noised = noised + (mix_randn_amount * rand_noise)
         samples["samples"] = noised
         return (samples,)
  
@@ -953,6 +973,11 @@ class GenerateNoise:
             "optional": {
             "model": ("MODEL", ),
             "sigmas": ("SIGMAS", ),
+            "latent_channels": (
+            [   '4',
+                '16',
+            ],
+           ),
             }
             }
     
@@ -963,10 +988,10 @@ class GenerateNoise:
 Generates noise for injection or to be used as empty latents on samplers with add_noise off.
 """
         
-    def generatenoise(self, batch_size, width, height, seed, multiplier, constant_batch_noise, normalize, sigmas=None, model=None):
+    def generatenoise(self, batch_size, width, height, seed, multiplier, constant_batch_noise, normalize, sigmas=None, model=None, latent_channels=4):
 
         generator = torch.manual_seed(seed)
-        noise = torch.randn([batch_size, 4, height // 8, width // 8], dtype=torch.float32, layout=torch.strided, generator=generator, device="cpu")
+        noise = torch.randn([batch_size, int(latent_channels), height // 8, width // 8], dtype=torch.float32, layout=torch.strided, generator=generator, device="cpu")
         if sigmas is not None:
             sigma = sigmas[0] - sigmas[-1]
             sigma /= model.model.latent_format.scale_factor
@@ -978,6 +1003,8 @@ Generates noise for injection or to be used as empty latents on samplers with ad
             noise = noise / noise.std()
         if constant_batch_noise:
             noise = noise[0].repeat(batch_size, 1, 1, 1)
+
+        
         return ({"samples":noise}, )
 
 def camera_embeddings(elevation, azimuth):
@@ -1331,6 +1358,12 @@ https://huggingface.co/roborovski/superprompt-v1
         from transformers import T5Tokenizer, T5ForConditionalGeneration
 
         checkpoint_path = os.path.join(script_directory, "models","superprompt-v1")
+        if not os.path.exists(checkpoint_path):
+                print(f"Downloading model to: {checkpoint_path}")
+                from huggingface_hub import snapshot_download
+                snapshot_download(repo_id="roborovski/superprompt-v1", 
+                                  local_dir=checkpoint_path, 
+                                  local_dir_use_symlinks=False)
         tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small", legacy=False)
 
         model = T5ForConditionalGeneration.from_pretrained(checkpoint_path, device_map=device)
@@ -1651,3 +1684,49 @@ If no image is provided, mode is set to text-to-image
             except json.JSONDecodeError:
                 # If the response is not valid JSON, raise a different exception
                 raise Exception(f"Server error: {response.text}")
+            
+class CheckpointPerturbWeights:
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "model": ("MODEL",),
+            "joint_blocks": ("FLOAT", {"default": 0.02, "min": 0.001, "max": 10.0, "step": 0.001}),
+            "final_layer": ("FLOAT", {"default": 0.02, "min": 0.001, "max": 10.0, "step": 0.001}),
+            "rest_of_the_blocks": ("FLOAT", {"default": 0.02, "min": 0.001, "max": 10.0, "step": 0.001}),
+            "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
+            }
+        }
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "mod"
+    OUTPUT_NODE = True
+
+    CATEGORY = "KJNodes/experimental"
+
+    def mod(self, seed, model, joint_blocks, final_layer, rest_of_the_blocks):
+        import copy
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        device = model_management.get_torch_device()
+        model_copy = copy.deepcopy(model)
+        model_copy.model.to(device)
+        keys = model_copy.model.diffusion_model.state_dict().keys()
+
+        dict = {}
+        for key in keys:
+            dict[key] = model_copy.model.diffusion_model.state_dict()[key]
+
+        pbar = ProgressBar(len(keys))
+        for k in keys:
+            v = dict[k]
+            print(f'{k}: {v.std()}') 
+            if k.startswith('joint_blocks'):
+                multiplier = joint_blocks
+            elif k.startswith('final_layer'):
+                multiplier = final_layer
+            else:
+                multiplier = rest_of_the_blocks
+            dict[k] += torch.normal(torch.zeros_like(v) * v.mean(), torch.ones_like(v) * v.std() * multiplier).to(device)
+            pbar.update(1)
+        model_copy.model.diffusion_model.load_state_dict(dict)
+        return model_copy,
